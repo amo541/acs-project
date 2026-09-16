@@ -37,7 +37,18 @@ Rationale: doing this manually once first, before automating it in Terraform, so
 - Installed GitHub CLI (`gh`) via Homebrew, authenticated (`gh auth login`).
 - Committed the Dockerfile, created a new **private** repo under my own account — [github.com/amo541/acs-project](https://github.com/amo541/acs-project) — added as remote `myrepo`, pushed. `main` now tracks `myrepo/main` by default; `origin` (upstream) kept around in case codercohq pushes updates later.
 
+## 2026-09-16 — Terraform for resource group + ACR
+
+- Quick Terraform workflow refresher (providers, state, init/plan/apply/destroy) since a week had passed.
+- Destroyed the manually-built `rg-acs-project` (`az group delete`), freeing up the ACR name for a clean rebuild.
+- Wrote `terraform/provider.tf` and `terraform/main.tf`. Mistakes caught in review along the way, not just handed fixes:
+  - `provider.tf`: unclosed `terraform {}` block (syntax error), then missing the mandatory `provider "azurerm" { features {} }` block (required_providers alone only tells Terraform which plugin to download, doesn't configure it).
+  - `main.tf`: resource *local* names used hyphens (works, but convention is underscores — hyphens reserved for the actual cloud resource `name =` values); ACR `name` briefly had hyphens in it, which Azure rejects (ACR names must be alphanumeric-only); `admin_enabled` was `true` via VS Code autocomplete, not intentional — changed to `false` to match how the manual ACR was actually authenticated (`az acr login`, not static admin credentials). Decided proper CI/CD auth will use a scoped service principal/managed identity (`AcrPush` role) later, not ACR admin creds.
+- `terraform init` → `plan` → `apply` succeeded cleanly (2 added, 0 errors) — new resource group + ACR (`acracsproject`) match the manually-built version exactly (name, region, SKU, admin disabled).
+- Re-pushed `coderco-task-app:v1` to the new Terraform-created registry to confirm parity end-to-end.
+- Committed `terraform/` (provider.tf, main.tf, lock file) to the repo — `.gitignore` already correctly excludes `.terraform/` and `*.tfstate*`, confirmed before committing.
+- Noted a stray root-owned `terraform/provider.tf.save` file sitting in the directory (harmless, gitignored, cause unclear — maybe a stray `sudo vim` session) — not investigated yet.
+
 ## Next up
 
-- Destroy the manually-created `rg-acs-project` resource group and rebuild the same resource group + ACR through Terraform, to compare the IaC output against what was built by hand.
-- Then move on to Azure Container Apps, HTTPS networking (Application Gateway or Front Door), and finally the CI/CD pipeline.
+- Move on to Azure Container Apps (running the pushed image), then HTTPS networking (Application Gateway or Front Door), and finally the CI/CD pipeline (with proper service-principal auth to ACR, not admin credentials).
