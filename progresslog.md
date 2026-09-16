@@ -49,6 +49,27 @@ Rationale: doing this manually once first, before automating it in Terraform, so
 - Committed `terraform/` (provider.tf, main.tf, lock file) to the repo — `.gitignore` already correctly excludes `.terraform/` and `*.tfstate*`, confirmed before committing.
 - Noted a stray root-owned `terraform/provider.tf.save` file sitting in the directory (harmless, gitignored, cause unclear — maybe a stray `sudo vim` session) — not investigated yet.
 
+## 2026-09-16 (continued) — File reorganization
+
+- Split the flat `terraform/` layout into per-concern files (enterprise-style convention): `providers.tf` (renamed from `provider.tf`), `resource_group.tf`, `container_registry.tf`. Confirmed the split was purely cosmetic with `terraform plan` → "No changes."
+- Learned the actual reason this matters at scale: separate state per project (not per file) is what isolates blast radius between unrelated projects — file splitting is just readability within one project/state, a different axis entirely.
+- Minor detour: git commit heredocs kept breaking in this shell environment (`<noreply@...>` was being parsed as shell redirection) — worked around by writing commit messages to a file and using `git commit -F`. Also: **no more "Co-Authored-By: Claude" lines in commits/PRs going forward**, per explicit request.
+
+## 2026-09-16 (continued) — Azure Container Apps
+
+First real Azure Container Apps deployment — new service, more moving parts than ACR. Built incrementally in `terraform/container_apps.tf`:
+
+- **Log Analytics workspace** + **Container App Environment** — straightforward once the resource-group-reference pattern (avoiding hardcoded literals/drift) was applied consistently, same lesson as before, just repeated in two more places.
+- **`azurerm_container_app`** — this is where the real learning happened. Iterated through:
+  - `resource_group_name` accidentally hardcoded as a literal string again — caught and explained as "drift risk" (config silently disagreeing with itself if the RG is ever renamed).
+  - Learned to read the Terraform Registry docs' "Attributes Reference" section to find `azurerm_container_registry`'s `login_server` attribute, rather than being handed it — built the `image` value via string interpolation.
+  - **Provider version bug, caught live**: `azurerm` v5.x (pulled in by the loose `>= 3.0.0` constraint flagged back on 2026-09-16 earlier) requires an explicit `logs_destination = "log-analytics"` alongside `log_analytics_workspace_id` — didn't exist as a requirement in older versions. Direct proof of why loose version constraints bite later.
+  - **The real conceptual hurdle**: system-assigned identity + ACR pull is a chicken-and-egg problem. Azure tries to pull the image *during* container app creation, but a system-assigned identity's principal ID (and therefore any role assignment granting it access) doesn't exist until *after* that same resource finishes creating — too late for the first pull. First `apply` failed with `UNAUTHORIZED` on the image pull.
+  - **Fix**: switched to a standalone `azurerm_user_assigned_identity`, created and granted `AcrPull` *before* the container app exists, then attached via `identity { type = "UserAssigned" }` + an explicit `registry { server = ..., identity = ... }` block telling Container Apps which identity to use for that specific registry.
+  - **Side effect of the earlier failed apply**: the container app resource had actually been created in Azure (control-plane succeeded even though the revision/image pull failed), but Terraform's state never recorded it since the apply call errored — a state/reality mismatch. Resolved by deleting the orphaned resource directly (`az containerapp delete`) rather than importing a broken, wrongly-configured resource into state.
+- Final `apply` succeeded cleanly. Confirmed the app is reachable over HTTPS on its default `*.azurecontainerapps.io` hostname — full path from Dockerfile → ACR → Container App now proven end-to-end via Terraform.
+
 ## Next up
 
-- Move on to Azure Container Apps (running the pushed image), then HTTPS networking (Application Gateway or Front Door), and finally the CI/CD pipeline (with proper service-principal auth to ACR, not admin credentials).
+- HTTPS networking with a custom domain (Application Gateway or Front Door) to satisfy the `tm.<domain>.co.uk` requirement — still need to sort out an actual domain for this.
+- Then the CI/CD pipeline, using a proper service principal (not admin credentials) for ACR push access.
