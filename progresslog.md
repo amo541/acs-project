@@ -69,7 +69,14 @@ First real Azure Container Apps deployment — new service, more moving parts th
   - **Side effect of the earlier failed apply**: the container app resource had actually been created in Azure (control-plane succeeded even though the revision/image pull failed), but Terraform's state never recorded it since the apply call errored — a state/reality mismatch. Resolved by deleting the orphaned resource directly (`az containerapp delete`) rather than importing a broken, wrongly-configured resource into state.
 - Final `apply` succeeded cleanly. Confirmed the app is reachable over HTTPS on its default `*.azurecontainerapps.io` hostname — full path from Dockerfile → ACR → Container App now proven end-to-end via Terraform.
 
+## 2026-09-16 (continued) — Cost cleanup: `terraform destroy`
+
+- Confirmed the running setup wasn't actually costing much (Container App had `min_replicas = 0`, so it scales to zero when idle — the always-on cost concern applies more to what's coming next, App Gateway/Front Door, than to what existed today). Destroyed anyway to build the habit before it actually matters.
+- Hit a real `azurerm` provider bug (not a config mistake): deleting `azurerm_container_app` and later `azurerm_container_app_environment` both failed with `polling support for the Content-Type "" was not implemented` — a provider polling quirk unrelated to whether the delete itself actually succeeded on Azure's side. Worked around by checking actual resource state directly via `az containerapp show` / `az containerapp env show` between retries, rather than trusting Terraform's error as the final word. Environment deletion in particular took several minutes server-side regardless.
+- End state confirmed clean: `az group exists --name rg-acs-project` → `false`. Nothing billable left running.
+
 ## Next up
 
+- Re-`apply` the existing Terraform config to bring everything back (expect: need to `docker push` the image again since the fresh ACR is empty, and the Container App's default hostname will have a new random suffix).
 - HTTPS networking with a custom domain (Application Gateway or Front Door) to satisfy the `tm.<domain>.co.uk` requirement — still need to sort out an actual domain for this.
 - Then the CI/CD pipeline, using a proper service principal (not admin credentials) for ACR push access.
