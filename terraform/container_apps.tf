@@ -12,6 +12,11 @@ resource "azurerm_container_app_environment" "acs_project_env" {
   location                   = azurerm_resource_group.rg_acs_project.location
   logs_destination           = "log-analytics"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.acs_project_log_analytics.id
+
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
 }
 
 resource "azurerm_user_assigned_identity" "acr_pull_identity" {
@@ -31,6 +36,7 @@ resource "azurerm_container_app" "acs_project_app" {
   resource_group_name          = azurerm_resource_group.rg_acs_project.name
   container_app_environment_id = azurerm_container_app_environment.acs_project_env.id
   revision_mode                = "Single"
+  workload_profile_name        = "Consumption"
 
   identity {
     type = "UserAssigned"
