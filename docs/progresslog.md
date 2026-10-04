@@ -146,5 +146,4 @@ These are the "enterprise route" items discussed while designing the pipeline. T
 
 - Architecture diagram (building this myself, in draw.io with the Azure icon set, probably as `docs/architecture.drawio.svg`) → replace the placeholder in the README.
 - Final reflection section in this log.
-- Housekeeping: remove the stray root-owned `terraform/provider.tf.save`.
 - Optional: a basic test step in the pipeline, and newer `actions/checkout`/`azure/login` versions to clear the Node.js 20 warning.
