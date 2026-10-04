@@ -1,8 +1,6 @@
-<div align="center">
-    <img src="./app/static/images/coderco_logo.jpeg" alt="CoderCo" width="300"/>
-</div>
 
-# CoderCo Task Manager on Azure
+
+# Task Manager on Azure
 
 A Flask task-management API, containerised and deployed to **Azure Container Apps**, with all infrastructure in **Terraform**, HTTPS on a custom domain through **Azure Application Gateway** and **Cloudflare**, and automated deployments from **GitHub Actions**.
 
