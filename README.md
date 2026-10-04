@@ -64,9 +64,9 @@ Logs from the Container Apps environment go to a Log Analytics workspace.
 
 ![Resource visualizer](Screenshots/Screenshot%202026-10-04%20at%2022.54.30.png)
 
-**The certificate browsers see.** This is Cloudflare's edge certificate (issued by Let's Encrypt). The Cloudflare Origin Certificate on the Application Gateway is never shown to visitors; it only secures the Cloudflare → Azure leg.
+**The pipeline's identity has no stored secrets.** The GitHub Actions app registration has zero client secrets and one federated credential: the OIDC trust that lets GitHub Actions log in to Azure without a password.
 
-![Certificate viewer](Screenshots/Screenshot%202026-10-04%20at%2022.54.56.png)
+![Federated credential on the GitHub Actions app registration](Screenshots/Screenshot%202026-10-05%20at%2000.23.39.png)
 
 **CI/CD: first successful deploy (manually triggered)**
 
