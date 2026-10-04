@@ -52,7 +52,7 @@ Logs from the Container Apps environment go to a Log Analytics workspace.
 
 **Live app on the custom domain**
 
-![Live app at tm.amatechvault.com](Screenshots/Screenshot%202026-10-04%20at%2022.53.24.png)
+![Live app at tm.amatechvault.com](Screenshots/Screenshot%202026-10-05%20at%2000.34.44.png)
 
 **Azure resources in the resource group**
 
