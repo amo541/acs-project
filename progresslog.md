@@ -129,7 +129,17 @@ These are the "enterprise route" items discussed while designing the pipeline. T
    - **Branch protection / required reviews** on `main`, so no infra change applies without a human approving it. That's what turns automation into an audit trail.
 2. **Multiple environments (dev → UAT/staging → prod).** Standard practice is to build the image *once* and promote the same image through each environment, usually with a manual approval gate before prod. Here that would mean a resource group (or at least a Container App) per environment, driven by per-environment `.tfvars` files or Terraform workspaces sharing the same `.tf` code, plus GitHub Environments with required reviewers on the prod deploy job.
 
+## 2026-10-05 — `.dockerignore`, screenshots, README
+
+- **`.dockerignore`**, finally closing the oldest open item from day one. Saw the problem first: `docker run --rm coderco-task-app ls -la /app` showed an 11 MB macOS `venv/`, `.DS_Store` and the `Dockerfile` baked into the image by `COPY . .`. First attempt put several patterns on one line separated by commas, which Docker treats as a single literal pattern matching nothing; fixed to one pattern per line. After: `/app` in the image dropped to 264K, and only the `COPY . .` layer rebuilt (the `pip install` layer stayed cached).
+- Learned that **Docker doesn't read `.gitignore`**. CI images were already clean because the GitHub runner only has what's in git; local builds weren't. Also that the build output's `transferring context:` size is a poor measurement, because Docker caches the context between builds.
+- Committing `app/.dockerignore` **triggered the pipeline automatically**, the first push-triggered (rather than manual) deploy. It went green.
+- Screenshots committed to `Screenshots/`: live site, Azure resources and resource visualizer, the browser's view of the certificate (Cloudflare's Let's Encrypt edge cert, which is exactly what should be visible, since the Origin Cert only secures Cloudflare → Azure), and pipeline runs #3 and #4.
+- **README rewritten** to describe the actual deployment: live URL, request and deploy flow, screenshots, key decisions, deviations from the brief (`.com` domain, no modules, no test step), a rebuild-from-scratch runbook with every gotcha hit along the way, local dev and API usage, and future work.
+
 ## Next up
 
-- Loose ends: `.dockerignore` (still outstanding since day one), `docs/` architecture diagram + screenshots, README update with the real deployment URL and the deviations/decisions made along the way.
-- Optional: a basic test step in the pipeline (the README asks for build *and test*; the app currently has no tests), and bumping `actions/checkout`/`azure/login` to versions that don't trigger the Node.js 20 deprecation warning.
+- Architecture diagram (building this myself) → add to `docs/` and replace the placeholder in the README.
+- Final reflection section in this log.
+- Housekeeping: remove the stray root-owned `terraform/provider.tf.save`.
+- Optional: a basic test step in the pipeline, and newer `actions/checkout`/`azure/login` versions to clear the Node.js 20 warning.
