@@ -101,6 +101,42 @@ Division of ownership after this:
 
 ---
 
+## `.dockerignore`
+
+A plain text **file** (not a folder) that sits at the root of the build context, i.e. the folder passed as `.` in `docker build -t name .`. Here that's `app/.dockerignore`, next to the Dockerfile. It stops files from being sent to Docker and copied into the image by `COPY . .`.
+
+```
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+Dockerfile
+.dockerignore
+```
+
+**One pattern per line.** Commas mean nothing: `venv/, .venv/` on one line is treated as a single pattern for a file literally named `venv/, .venv/`, which matches nothing, so `venv/` still ends up in the image.
+
+**Docker does not read `.gitignore`.** They're separate. Here, CI images were already clean (the GitHub runner only has what's in git), but local builds still copied in an 11 MB macOS `venv`. `.dockerignore` closes that gap.
+
+**Why it matters:**
+- **Size**: `/app` in the image went from ~11 MB to 264K.
+- **Wrong platform**: a `venv` built on macOS is useless inside a Linux container.
+- **Rebuild speed**: any change to a copied file (even Finder rewriting `.DS_Store`) invalidates the `COPY . .` layer.
+- **Secrets**: a stray `.env` would otherwise be baked into the image for anyone who can pull it.
+
+**Checking what's actually in an image:**
+
+```bash
+docker run --rm <image> ls -la /app     # what files made it in
+docker run --rm <image> du -sh /app     # how big they are
+```
+
+**Gotcha:** the `transferring context:` size in build output isn't a reliable before/after measurement. Docker caches the build context between builds and only sends changed files, so it can look tiny even when the image is bloated. Measure inside the image instead.
+
+---
+
 ## `terraform fmt`
 
 Rewrites every `.tf` file in the directory to the standard style (indentation, `=` alignment). It never changes behaviour, only layout. Run it before committing. It prints the names of any files it changed.
