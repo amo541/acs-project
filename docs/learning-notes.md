@@ -23,6 +23,12 @@ gh run view <run-id> --repo amo541/acs-project --log-failed | tail -30
 
 `--log-failed` skips every green step and prints only what broke. The actual error is usually near the end, hence `tail`.
 
+### Finding the run ID
+
+- **`gh run list`**: the long number near the end of each line (e.g. `37240566707`). The newest run is the top line.
+- **Browser URL**: a run's page ends in `/actions/runs/<run-id>`.
+- **Skip it**: inside the repo folder, most `gh run` commands show a picker of recent runs if you leave the ID off (e.g. `gh run view --log-failed`).
+
 ### Handy extras
 
 | Command | What it does |
