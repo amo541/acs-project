@@ -1,6 +1,6 @@
 # Learning Notes
 
-Reusable skills and reference material picked up during this project, organised by topic rather than by date. For the chronological story of the project, see [`progresslog.md`](../progresslog.md).
+Reusable skills and reference material picked up during this project, organised by topic rather than by date. For the chronological story of the project, see [`progresslog.md`](progresslog.md).
 
 ---
 
@@ -140,6 +140,21 @@ docker run --rm <image> du -sh /app     # how big they are
 ## `terraform fmt`
 
 Rewrites every `.tf` file in the directory to the standard style (indentation, `=` alignment). It never changes behaviour, only layout. Run it before committing. It prints the names of any files it changed.
+
+---
+
+## Push rejected: "the remote contains work that you do not have locally"
+
+Happens when a commit was made on GitHub directly (e.g. editing a file in the browser) and your laptop doesn't have it yet. Git refuses the push because it would silently throw that commit away.
+
+```bash
+git pull --rebase myrepo main   # download the GitHub commit, replay your local commits on top
+git push myrepo main
+```
+
+If both sides changed different parts of the file, git merges them automatically. If they changed the same lines, git stops and asks you to resolve the conflict.
+
+**Habit:** after editing anything in the GitHub web UI, run `git pull` locally before making more changes.
 
 ---
 

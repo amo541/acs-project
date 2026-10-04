@@ -8,8 +8,6 @@ A Flask task-management API, containerised and deployed to **Azure Container App
 
 > The infrastructure is torn down between working sessions to control cost, so the link may be offline. See [Rebuilding from scratch](#rebuilding-from-scratch).
 
-Built as CoderCo Assignment 1. The original brief is summarised in [The assignment](#the-assignment) below.
-
 ---
 
 ## Architecture
@@ -93,9 +91,9 @@ terraform/
 .github/workflows/
   deploy.yml            build, push and deploy pipeline
 docs/
+  progresslog.md        session-by-session build log
   learning-notes.md     reusable techniques and gotchas, by topic
 Screenshots/            screenshots used above
-progresslog.md          session-by-session build log
 ```
 
 Not committed (gitignored): `terraform/terraform.tfvars`, `terraform/certs/` (Origin Certificate, private key, `.pfx`), and Terraform state.
@@ -116,11 +114,9 @@ Not committed (gitignored): `terraform/terraform.tfvars`, `terraform/certs/` (Or
 | **Pipeline deploys the app only; infrastructure changes are manual** | Terraform state is local. Running `apply` from CI safely needs remote state first. See [Future work](#future-work). |
 | **`max_replicas = 1`, `min_replicas = 0`** | Tasks are stored in memory, so a second replica would have its own separate task list. Scaling to zero keeps idle cost near nothing. |
 
-### Deviations from the brief
+### Why no Terraform modules
 
-- **Domain** is `tm.amatechvault.com` rather than a `.co.uk`. Same `tm.` subdomain convention.
-- **No Terraform modules.** The brief suggests modules for reusable components, but this is one project with one environment and nothing repeated, so a module would be abstraction without reuse. Resources are instead split into one file per concern.
-- **No test step in the pipeline yet.** The brief asks for build *and test*; the app has no tests. The pipeline currently builds, pushes and deploys.
+This is one project with one environment and nothing repeated, so a module would be abstraction without reuse. Resources are instead split into one file per concern. Modules would earn their place once there are multiple environments built from the same pattern (see [Future work](#future-work)).
 
 ---
 
@@ -232,7 +228,7 @@ Swap `http://localhost:3000` for `https://tm.amatechvault.com` to hit the live d
 
 ## Future work
 
-Deliberately left out of scope. The full reasoning is in [`progresslog.md`](progresslog.md).
+Deliberately left out of scope for now. The full reasoning is in [`docs/progresslog.md`](docs/progresslog.md).
 
 - **Remote Terraform state** (Azure Storage with state locking). This is the prerequisite for everything below.
 - **Infrastructure through CI:** `terraform plan` on every pull request, `apply` on merge, behind branch protection.
@@ -243,19 +239,7 @@ Deliberately left out of scope. The full reasoning is in [`progresslog.md`](prog
 
 ---
 
-## The assignment
-
-The original CoderCo brief, for reference:
-
-- Containerise the app and push it to Azure Container Registry.
-- Use a CI/CD pipeline to build, test and push the image.
-- Deploy to Azure Container Apps using Terraform.
-- Expose it over HTTPS with Azure Application Gateway or Front Door at `https://tm.<your-domain>`.
-- Add screenshots of the live app and an architecture diagram.
-
----
-
 ## Further reading
 
-- [`progresslog.md`](progresslog.md): how the project was built, session by session, including what went wrong and why.
+- [`docs/progresslog.md`](docs/progresslog.md): how the project was built, session by session, including what went wrong and why.
 - [`docs/learning-notes.md`](docs/learning-notes.md): reusable techniques picked up along the way, organised by topic.

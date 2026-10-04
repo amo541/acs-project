@@ -117,7 +117,7 @@ Registered `amatechvault.com` on Cloudflare. Decided against the earlier Front D
 
 **New problem the success created:** `terraform plan` then wanted to roll the app back from the pipeline's commit-SHA image to `v1`. Terraform and the pipeline both "owned" the image field. Fixed with `lifecycle { ignore_changes = [template[0].container[0].image] }`: Terraform sets `v1` on first creation, then leaves the image to the pipeline while still managing everything else.
 
-**Skills picked up:** debugging Actions from the terminal with the `gh` CLI (`gh run list`, `gh run view --log-failed`, `gh run watch`, `gh workflow run`), finding run IDs, and `terraform fmt`. All collected by topic in a new [`docs/learning-notes.md`](docs/learning-notes.md), a reference companion to this chronological log.
+**Skills picked up:** debugging Actions from the terminal with the `gh` CLI (`gh run list`, `gh run view --log-failed`, `gh run watch`, `gh workflow run`), finding run IDs, and `terraform fmt`. All collected by topic in a new [`learning-notes.md`](learning-notes.md), a reference companion to this chronological log.
 
 ## Future work (documented, deliberately not built)
 
