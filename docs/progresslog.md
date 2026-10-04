@@ -137,9 +137,14 @@ These are the "enterprise route" items discussed while designing the pipeline. T
 - Screenshots committed to `Screenshots/`: live site, Azure resources and resource visualizer, the browser's view of the certificate (Cloudflare's Let's Encrypt edge cert, which is exactly what should be visible, since the Origin Cert only secures Cloudflare → Azure), and pipeline runs #3 and #4.
 - **README rewritten** to describe the actual deployment: live URL, request and deploy flow, screenshots, key decisions, deviations from the brief (`.com` domain, no modules, no test step), a rebuild-from-scratch runbook with every gotcha hit along the way, local dev and API usage, and future work.
 
+- **Tidied the repo framing:** moved `progresslog.md` into `docs/` alongside `learning-notes.md` (with `git mv`, so history follows it), and rewrote the README to present this as my own project rather than a course assignment. Swapped two screenshots: the live site now shows tasks, and the certificate screenshot became one of the pipeline's app registration (0 client secrets, 1 federated credential), which is better proof of the no-stored-secrets approach.
+- **Rejected push:** after I edited the README in GitHub's web UI, a local push was rejected because GitHub had a commit my laptop didn't. Fixed with `git pull --rebase`, which replayed the local commit on top. Habit: `git pull` after any browser edit.
+- Wrote a **greenfield deployment runbook** (what to build and why, in order, for future deployments), kept locally rather than in this repo.
+- Infrastructure **left running** for a day. The Application Gateway is ~£6/day; still inside the free credit until 2026-10-08.
+
 ## Next up
 
-- Architecture diagram (building this myself) → add to `docs/` and replace the placeholder in the README.
+- Architecture diagram (building this myself, in draw.io with the Azure icon set, probably as `docs/architecture.drawio.svg`) → replace the placeholder in the README.
 - Final reflection section in this log.
 - Housekeeping: remove the stray root-owned `terraform/provider.tf.save`.
 - Optional: a basic test step in the pipeline, and newer `actions/checkout`/`azure/login` versions to clear the Node.js 20 warning.
