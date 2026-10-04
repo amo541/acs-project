@@ -88,7 +88,20 @@ Picked back up after about 3 weeks away. Azure credit (£147.25) is now 4 days f
 
 ## Next up
 
-- Register a domain on Cloudflare, then build Azure Front Door in Terraform (profile → endpoint → origin group → origin → route) pointed at the Container App.
-- Add the custom domain to Front Door, validate via Cloudflare DNS, confirm the managed TLS cert issues, point `tm.<domain>` at it (DNS-only, not proxied).
-- Then the CI/CD pipeline: service principal/OIDC for GitHub Actions, `.github/workflows/` to build+push+deploy.
+## 2026-10-04 (continued) — Switched plan: Application Gateway, not Front Door
+
+Registered `amatechvault.com` on Cloudflare. Decided against the earlier Front Door plan — no longer under time pressure (Azure credit deadline no longer treated as a hard constraint), so went with the more hands-on **Application Gateway** route instead, since it's a better fit for the networking fundamentals this whole project is meant to consolidate.
+
+- **TLS strategy**: rather than sourcing a publicly-trusted cert (would need Key Vault + Let's Encrypt/ACME automation — a whole side-project), used a **Cloudflare Origin Certificate** instead — free, covers `*.amatechvault.com` + apex, trusted automatically by Cloudflare. Converted the cert+key Cloudflare gives you into a `.pfx` via `openssl pkcs12 -export` (App Gateway's `ssl_certificate` block needs that format). Cert/key files kept in `terraform/certs/`, added to `.gitignore` (`*.pem`, `*.key`, `*.pfx`, the whole folder) *before* any files existed, to close the window for an accidental secret commit.
+- Introduced `variables.tf` + `terraform.tfvars` properly for the first time (planned a few sessions back, finally had a real reason to): the `.pfx` password as a `sensitive = true` variable, kept out of committed files.
+- Built `networking.tf` incrementally, same lesson as Container Apps — simple pieces first (VNet, dedicated subnet, Standard static public IP — all hard platform requirements for App Gateway v2, not design choices), confirmed clean, *then* the big `azurerm_application_gateway` resource.
+- `azurerm_application_gateway` was a real jump in complexity — unlike every other resource so far, its internal blocks (listener, backend pool, HTTP settings, etc.) cross-reference each other by **plain name strings**, not Terraform's usual dot-notation resource references. Worth remembering as the exception to the pattern, not the rule.
+- Key correctness detail: `pick_host_name_from_backend_address = true` on the backend HTTP settings — without it, App Gateway would forward the original `Host: tm.amatechvault.com` header straight to the Container App, which wouldn't recognize it. This rewrites the Host header to the backend pool's actual FQDN before forwarding.
+- Hit the familiar `MissingSubscriptionRegistration` pattern again, this time for `Microsoft.Network` — registered and retried, same as every previous new-namespace case.
+- **DNS + Cloudflare setup**: added an `A` record for `tm` → the App Gateway's public IP, **proxied (orange cloud)** this time — opposite of the Front Door plan, since here Cloudflare's edge cert covers the public-facing leg and the Origin Cert only secures Cloudflare→App Gateway. Set Cloudflare SSL/TLS mode to **Full (strict)** — the only mode that actually validates the Origin Cert, which is the whole reason it was generated.
+- **Confirmed working end-to-end**: `https://tm.amatechvault.com` loads the full app in the browser, through Cloudflare → Application Gateway → Container App. Phase 2 (HTTPS + custom domain) complete.
+
+## Next up
+
+- CI/CD pipeline: service principal/OIDC for GitHub Actions, `.github/workflows/` to build+push+deploy.
 - Loose ends: `.dockerignore` (still outstanding since day one), `docs/` folder with architecture diagram + screenshots, README update with the real deployment URL.
