@@ -75,8 +75,20 @@ First real Azure Container Apps deployment — new service, more moving parts th
 - Hit a real `azurerm` provider bug (not a config mistake): deleting `azurerm_container_app` and later `azurerm_container_app_environment` both failed with `polling support for the Content-Type "" was not implemented` — a provider polling quirk unrelated to whether the delete itself actually succeeded on Azure's side. Worked around by checking actual resource state directly via `az containerapp show` / `az containerapp env show` between retries, rather than trusting Terraform's error as the final word. Environment deletion in particular took several minutes server-side regardless.
 - End state confirmed clean: `az group exists --name rg-acs-project` → `false`. Nothing billable left running.
 
+## 2026-10-04 — Rebuilding after the gap, decision on domain strategy
+
+Picked back up after about 3 weeks away. Azure credit (£147.25) is now 4 days from expiry — flagged this, but decided not to let it force a rushed networking setup; covering any overage cost is fine, destroying between sessions stays good practice regardless of the deadline pressure.
+
+- Resolved the open "need a real domain" question: have a Cloudflare account but no domain registered yet. Decided on **Azure Front Door** over Application Gateway for the upcoming HTTPS/custom-domain phase — Front Door can auto-issue/manage the TLS certificate for a custom domain, App Gateway requires sourcing and managing the cert yourself. Noted for later: the Cloudflare DNS record for the domain needs to be **DNS-only (grey cloud), not proxied**, or Azure's domain validation and TLS will conflict with Cloudflare's proxy.
+- `terraform apply` to rebuild the base infra (RG, ACR, Log Analytics, environment, container app, identity, role assignment) hit the exact same two issues as the first build:
+  - ACR came back empty (expected — Terraform manages the registry, not its contents) — re-pushed `coderco-task-app:v1`.
+  - Same orphaned-container-app pattern as before (control plane creates it, revision/image-pull fails, Terraform's state never records it) — same fix, `az containerapp delete` then re-apply.
+- **New issue, not seen before**: after a clean re-apply, `terraform plan` showed perpetual drift — Azure now auto-attaches a default `"Consumption"` workload profile to Container App Environments/Apps that didn't exist (or wasn't exposed this way) when this was first built weeks ago. Fixed by explicitly declaring `workload_profile {}` on the environment and `workload_profile_name = "Consumption"` on the container app, matching reality instead of letting Terraform fight the platform default. Another real example of Azure's defaults shifting under an existing config over time.
+- Confirmed app reachable again on its new default hostname (`*.gentleforest-....azurecontainerapps.io` — new random suffix, as expected from a full rebuild).
+
 ## Next up
 
-- Re-`apply` the existing Terraform config to bring everything back (expect: need to `docker push` the image again since the fresh ACR is empty, and the Container App's default hostname will have a new random suffix).
-- HTTPS networking with a custom domain (Application Gateway or Front Door) to satisfy the `tm.<domain>.co.uk` requirement — still need to sort out an actual domain for this.
-- Then the CI/CD pipeline, using a proper service principal (not admin credentials) for ACR push access.
+- Register a domain on Cloudflare, then build Azure Front Door in Terraform (profile → endpoint → origin group → origin → route) pointed at the Container App.
+- Add the custom domain to Front Door, validate via Cloudflare DNS, confirm the managed TLS cert issues, point `tm.<domain>` at it (DNS-only, not proxied).
+- Then the CI/CD pipeline: service principal/OIDC for GitHub Actions, `.github/workflows/` to build+push+deploy.
+- Loose ends: `.dockerignore` (still outstanding since day one), `docs/` folder with architecture diagram + screenshots, README update with the real deployment URL.
