@@ -1,6 +1,12 @@
 .env
 .DS_Store
 
+# TLS certificates and private keys - never commit these
+terraform/certs/
+*.pem
+*.key
+*.pfx
+
 # Local .terraform directories
 **/.terraform/*
 
