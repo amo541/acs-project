@@ -12,7 +12,7 @@ resource "azuread_application_federated_identity_credential" "github_actions" {
   description    = "GitHub Actions OIDC trust for acs-project main branch"
   audiences       = ["api://AzureADTokenExchange"]
   issuer          = "https://token.actions.githubusercontent.com"
-  subject         = "repo:amo541/acs-project:ref:refs/heads/main"
+  subject         = "repo:amo541@182442816/acs-project@1361986982:ref:refs/heads/main"
 }
 
 resource "azurerm_role_assignment" "github_actions_acr_push" {
