@@ -70,6 +70,43 @@ In this project the GitHub Actions identity only had `AcrPush` on the container 
 
 ---
 
+## When Terraform and a pipeline both "own" the same setting
+
+Once the CI/CD pipeline started deploying new images, `terraform plan` wanted to roll the Container App back to the image written in the `.tf` file:
+
+```
+~ image = "...coderco-task-app:<commit-sha>" -> "...coderco-task-app:v1"
+```
+
+Two things now managed the same field: Terraform (from code) and the pipeline (on every deploy). Running `apply` would have silently undone the latest deployment.
+
+**Fix:** tell Terraform to set the field on creation, then stop managing it:
+
+```hcl
+resource "azurerm_container_app" "acs_project_app" {
+  # ...
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+    ]
+  }
+}
+```
+
+Division of ownership after this:
+- **Terraform** creates the app pointing at `v1`, and manages everything else (CPU, memory, ingress, replicas, identity).
+- **The pipeline** owns which image is running.
+
+**Gotcha:** Terraform never builds or pushes images; it only says which image to *point at*. On a fresh rebuild the registry is empty, so `v1` must be pushed by hand (or by a pipeline run) before the Container App can start.
+
+---
+
+## `terraform fmt`
+
+Rewrites every `.tf` file in the directory to the standard style (indentation, `=` alignment). It never changes behaviour, only layout. Run it before committing. It prints the names of any files it changed.
+
+---
+
 ## GitHub OIDC subject format includes numeric IDs
 
 When setting up an Azure federated identity credential for GitHub Actions, the `subject` has to match the token GitHub sends **exactly**. GitHub now includes immutable numeric IDs alongside the owner and repo names:

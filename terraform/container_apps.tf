@@ -39,10 +39,15 @@ resource "azurerm_container_app" "acs_project_app" {
   workload_profile_name        = "Consumption"
 
   identity {
-    type = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.acr_pull_identity.id]        
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.acr_pull_identity.id]
   }
 
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+    ]
+  }
 
 
   template {
@@ -61,11 +66,11 @@ resource "azurerm_container_app" "acs_project_app" {
     server   = azurerm_container_registry.acr_acs_project.login_server
     identity = azurerm_user_assigned_identity.acr_pull_identity.id
   }
-   
+
   ingress {
     external_enabled = true
     target_port      = 3000
-    transport         = "auto"
+    transport        = "auto"
 
     traffic_weight {
       latest_revision = true

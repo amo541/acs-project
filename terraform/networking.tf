@@ -52,23 +52,23 @@ resource "azurerm_application_gateway" "acs_project_appgw" {
   }
 
   probe {
-    name                                       = "health-probe"
-    protocol                                   = "Https"
-    path                                       = "/"
-    interval                                   = 30
-    timeout                                    = 30
-    unhealthy_threshold                        = 3
-    pick_host_name_from_backend_http_settings  = true
+    name                                      = "health-probe"
+    protocol                                  = "Https"
+    path                                      = "/"
+    interval                                  = 30
+    timeout                                   = 30
+    unhealthy_threshold                       = 3
+    pick_host_name_from_backend_http_settings = true
   }
 
   backend_http_settings {
-    name                                 = "backend-http-settings"
-    cookie_based_affinity                = "Disabled"
-    port                                 = 443
-    protocol                             = "Https"
-    request_timeout                      = 20
-    pick_host_name_from_backend_address  = true
-    probe_name                           = "health-probe"
+    name                                = "backend-http-settings"
+    cookie_based_affinity               = "Disabled"
+    port                                = 443
+    protocol                            = "Https"
+    request_timeout                     = 20
+    pick_host_name_from_backend_address = true
+    probe_name                          = "health-probe"
   }
 
   ssl_certificate {
@@ -87,11 +87,11 @@ resource "azurerm_application_gateway" "acs_project_appgw" {
   }
 
   request_routing_rule {
-    name                        = "routing-rule"
-    rule_type                   = "Basic"
-    http_listener_name          = "https-listener"
-    backend_address_pool_name   = "backend-pool"
-    backend_http_settings_name  = "backend-http-settings"
-    priority                    = 100
+    name                       = "routing-rule"
+    rule_type                  = "Basic"
+    http_listener_name         = "https-listener"
+    backend_address_pool_name  = "backend-pool"
+    backend_http_settings_name = "backend-http-settings"
+    priority                   = 100
   }
 }
