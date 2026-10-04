@@ -101,7 +101,35 @@ Registered `amatechvault.com` on Cloudflare. Decided against the earlier Front D
 - **DNS + Cloudflare setup**: added an `A` record for `tm` → the App Gateway's public IP, **proxied (orange cloud)** this time — opposite of the Front Door plan, since here Cloudflare's edge cert covers the public-facing leg and the Origin Cert only secures Cloudflare→App Gateway. Set Cloudflare SSL/TLS mode to **Full (strict)** — the only mode that actually validates the Origin Cert, which is the whole reason it was generated.
 - **Confirmed working end-to-end**: `https://tm.amatechvault.com` loads the full app in the browser, through Cloudflare → Application Gateway → Container App. Phase 2 (HTTPS + custom domain) complete.
 
+## 2026-10-04/05 — CI/CD pipeline (GitHub Actions + OIDC)
+
+**Design decisions made up front:**
+- **OIDC federated credential, not a client secret.** GitHub Actions swaps a short-lived GitHub token for an Azure session, so there's no password stored anywhere. Consistent with the "no static credentials" approach used for the ACR pull identity.
+- **The pipeline's identity is itself managed in Terraform** (new `azuread` provider, v3.x) rather than created by hand with `az ad` commands: `azuread_application_registration`, `azuread_service_principal`, `azuread_application_federated_identity_credential`, plus `azurerm_role_assignment`s. Verified resource/attribute names against the provider's raw docs on GitHub (the Registry pages don't fetch cleanly), which caught that v3.x uses `azuread_application_registration` rather than the older bundled `azuread_application`.
+- **Scope: build/push/deploy the app only.** Infrastructure changes stay manual (`terraform apply` from the laptop). See Future work below for why that's the consistent choice while state is still local.
+
+**What was built:** `terraform/github_actions.tf` (identity + roles) and `.github/workflows/deploy.yml`, which triggers on pushes to `main` under `app/**` (plus a manual `workflow_dispatch` button), logs in via OIDC, builds the image, tags it with the commit SHA (instead of reusing `v1`, so every running image traces back to an exact commit), pushes to ACR, and runs `az containerapp update`.
+
+**Deliberately reached the permission failure manually, for learning.** Gave the identity only `AcrPush` at first, knowing the deploy step would fail, to see it happen for real:
+1. **First run failed earlier than expected, at Azure login.** `AADSTS700213: No matching federated identity record`. GitHub's OIDC subject now includes immutable numeric IDs (`repo:amo541@182442816/acs-project@1361986982:ref:refs/heads/main`), not just names, so the name-only subject from older docs never matched. Fixed by copying the exact subject from the error. The IDs can also be looked up in advance with `gh api`.
+2. **Second run reached the planned failure.** Build and push went green (so `AcrPush` worked), then deploy failed with `The containerapp 'acs-project-app' does not exist`. It *did* exist. Azure answers "not found" rather than "access denied" when an identity has no rights on a resource at all. Lesson: when a pipeline says a resource doesn't exist but you know it does, suspect permissions first.
+3. **Fix:** a `Contributor` role assignment scoped to *just* the Container App (not the resource group). Third run: all green.
+
+**New problem the success created:** `terraform plan` then wanted to roll the app back from the pipeline's commit-SHA image to `v1`. Terraform and the pipeline both "owned" the image field. Fixed with `lifecycle { ignore_changes = [template[0].container[0].image] }`: Terraform sets `v1` on first creation, then leaves the image to the pipeline while still managing everything else.
+
+**Skills picked up:** debugging Actions from the terminal with the `gh` CLI (`gh run list`, `gh run view --log-failed`, `gh run watch`, `gh workflow run`), finding run IDs, and `terraform fmt`. All collected by topic in a new [`docs/learning-notes.md`](docs/learning-notes.md), a reference companion to this chronological log.
+
+## Future work (documented, deliberately not built)
+
+These are the "enterprise route" items discussed while designing the pipeline. They were scoped out on purpose, not overlooked.
+
+1. **Pipeline-driven infrastructure (plan on PR, apply on merge).** Mature teams usually have CI run `terraform plan` on every pull request and post the diff for review, then run `apply` automatically on merge to `main`, rather than anyone applying from a laptop. Prerequisites:
+   - **Remote state** (an Azure Storage Account blob with state locking). CI runners are ephemeral and can't rely on a local `terraform.tfstate`. This is the real blocker, and why manual applies are the *consistent* choice while state is local.
+   - A **separate, more broadly-scoped identity** for infra (closer to `Contributor` on the resource group), which is a bigger blast radius than the narrow app-deploy identity.
+   - **Branch protection / required reviews** on `main`, so no infra change applies without a human approving it. That's what turns automation into an audit trail.
+2. **Multiple environments (dev → UAT/staging → prod).** Standard practice is to build the image *once* and promote the same image through each environment, usually with a manual approval gate before prod. Here that would mean a resource group (or at least a Container App) per environment, driven by per-environment `.tfvars` files or Terraform workspaces sharing the same `.tf` code, plus GitHub Environments with required reviewers on the prod deploy job.
+
 ## Next up
 
-- CI/CD pipeline: service principal/OIDC for GitHub Actions, `.github/workflows/` to build+push+deploy.
-- Loose ends: `.dockerignore` (still outstanding since day one), `docs/` folder with architecture diagram + screenshots, README update with the real deployment URL.
+- Loose ends: `.dockerignore` (still outstanding since day one), `docs/` architecture diagram + screenshots, README update with the real deployment URL and the deviations/decisions made along the way.
+- Optional: a basic test step in the pipeline (the README asks for build *and test*; the app currently has no tests), and bumping `actions/checkout`/`azure/login` to versions that don't trigger the Node.js 20 deprecation warning.
