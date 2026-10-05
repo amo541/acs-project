@@ -142,6 +142,13 @@ These are the "enterprise route" items discussed while designing the pipeline. T
 - Wrote a **greenfield deployment runbook** (what to build and why, in order, for future deployments), kept locally rather than in this repo.
 - Infrastructure **left running** for a day. The Application Gateway is ~£6/day; still inside the free credit until 2026-10-08.
 
+## 2026-10-06 — Full teardown
+
+- Ran `terraform destroy` on the whole stack (~17 resources, now including the networking and the pipeline's identity). It took three runs, because the same `azurerm` polling bug hit twice: once on the Container App, once on the Container Apps environment. Both times Azure had actually accepted the delete; Terraform just lost track. Checked the real state with `az containerapp show` / `az containerapp env show` between runs (`ResourceNotFound` = done, `ScheduledForDelete` = in progress), then re-ran destroy to clear the rest. The environment alone took 15+ minutes; it's backed by more infrastructure than it looks.
+- Nice contrast with the CI/CD lesson: there, "not found" meant *no permission*; here, logged in as the subscription owner, "not found" genuinely meant *deleted*. Same error, different meaning depending on who's asking.
+- Verified from Azure's side rather than trusting Terraform's output: resource group gone, pipeline app registration gone (it lives in Entra ID, outside the resource group), state empty. The only thing left in the subscription is `NetworkWatcher_uksouth`, which Azure auto-creates the first time a VNet exists in a region (free).
+- After teardown: the pipeline will fail at Azure login until a rebuild (and `AZURE_CLIENT_ID` needs updating, since a rebuilt app registration gets a new client ID); the Cloudflare `tm` record points at a dead IP.
+
 ## Next up
 
 - Architecture diagram (building this myself, in draw.io with the Azure icon set, probably as `docs/architecture.drawio.svg`) → replace the placeholder in the README.
