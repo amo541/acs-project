@@ -6,7 +6,7 @@ Running log of what's been done, decisions made, and things learned along the wa
 
 ## 2026-09-06 — Local app baseline
 
-- Cloned the assignment repo, reviewed `app/app.py`: Flask task-management API, CRUD endpoints (`/tasks`), in-memory storage (a plain Python dict — no DB), runs on port **3000**, `debug=True`.
+- Cloned the application repo, reviewed `app/app.py`: Flask task-management API, CRUD endpoints (`/tasks`), in-memory storage (a plain Python dict — no DB), runs on port **3000**, `debug=True`.
 - Set up a Python venv in `app/`, installed `requirements.txt`, ran the app locally, confirmed CRUD works end-to-end via `curl` (`POST /tasks`, `GET /tasks`).
 - Noted two things to keep in mind for later: in-memory storage means tasks vanish on restart/across replicas (relevant once this runs on Container Apps with multiple instances), and `debug=True` is dev-only.
 
